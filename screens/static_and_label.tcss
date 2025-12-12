@@ -1,0 +1,113 @@
+/*
+|--------------------------------------------------------------------------
+| Global App Styling
+|--------------------------------------------------------------------------
+| Sets the main layout and colors for the entire screen.
+*/
+Screen {
+    /* Use a simple, clean layout for the entire screen */
+    layout: vertical;
+    /* Center all the main widgets horizontally */
+    align: center middle;
+    /* Set a dark, clean background */
+    background: $surface-darken-1; 
+    /* Set the default text color to be light and readable */
+    color: $text;
+    padding: 2 4; /* Add some padding around the edges */
+}
+
+
+#menu-container {
+    /* Define the size for the content block */
+    width: 30; 
+    /* Remove 'align: center middle' from Screen if you want other elements to fill the screen */
+    /* Instead, center the entire container */
+    align-horizontal: center;
+    /* Use 'height: auto' or 'height: 100%' if necessary, depending on your final layout goals. 
+       For this example, the default flow layout is fine. */
+}
+
+
+/*
+|--------------------------------------------------------------------------
+| Title Label
+|--------------------------------------------------------------------------
+| Styles the main title at the top.
+*/
+#title {
+    width: 100%; /* Make it span the full width */
+    text-align: center; /* Center the text inside the label */
+    padding: 1 0 2 0; /* Add top/bottom padding for separation */
+    text-style: bold;
+    color: $primary; /* Use the primary color for emphasis */
+    border-bottom: heavy $secondary; /* A clean separator line */
+    margin-bottom: 2;
+}
+
+
+/*
+|--------------------------------------------------------------------------
+| Buttons
+|--------------------------------------------------------------------------
+| Styles the menu buttons.
+*/
+Button {
+    /* Give buttons a fixed width to align them vertically */
+    width: 100%; 
+    /* Center the button text */
+    content-align: center middle;
+    /* Add a small vertical margin for separation */
+    margin: 1 0;
+    /* Minimalist button styling */
+    border: heavy $surface-lighten-1;
+    background: $surface;
+    color: $text;
+}
+
+Button:hover {
+    background: $surface-lighten-2;
+    border: heavy $primary;
+}
+
+Button:focus {
+    background: $primary;
+    color: black;
+    border: heavy $primary-darken-1;
+}
+
+/*
+|--------------------------------------------------------------------------
+| Static Text & Input
+|--------------------------------------------------------------------------
+| Styles the instruction text and the input field.
+*/
+Static {
+    /* Ensure the static text spans the width of the centered content */
+    width: 100%; 
+    text-align: center;
+    margin-top: 2; /* Add space above the instructions */
+    margin-bottom: 1;
+}
+
+Static.status {
+    width: 100%;
+    margin-top: 2;
+    padding: 1;
+    background: $surface-darken-2;
+    border: solid $surface-lighten-1;
+    text-align: center;
+    text-style: italic;
+    color: $accent;
+}
+
+Input {
+    width: 100%; /* Match the width of the buttons for alignment */
+    height: 3; /* Give the input field some height for clarity */
+    content-align: center middle;
+    margin-bottom: 4; /* Add space below the input */
+}
+
+/* Style the placeholder text */
+Input > .input--placeholder {
+    color: $text-muted;
+}
