@@ -30,6 +30,28 @@ def divided_differences(X, Y):
     # The coefficients are the top diagonal of the table
     return F[0, :]
 
+def newton_interpolation(x, X, Y):
+    """
+    Evaluates the Newton interpolating polynomial at a given point x.
+    
+    Args:
+        x (float): The point at which to evaluate the polynomial.
+        X (list/np.array): x-coordinates of data points.
+        Y (list/np.array): y-coordinates of data points.
+        
+    Returns:
+        float: The interpolated value at x.
+    """
+    n = len(X)
+    coeffs = divided_differences(X, Y)
+    
+    # Evaluate the Newton polynomial using Horner's method
+    result = coeffs[-1]
+    for k in range(n - 2, -1, -1):
+        result = result * (x - X[k]) + coeffs[k]
+        
+    return result
+
 
 def lagrange_interpolation(x, X, Y):
     total = 0
@@ -43,15 +65,13 @@ def lagrange_interpolation(x, X, Y):
     return total
 
 
-def plot_interpolation(X, Y, method):
+def plot(X, Y, method):
     xs = np.linspace(min(X), max(X), 100)
     ys = [method(x, X, Y) for x in xs]
 
     plt.scatter(X, Y, label="Data")
-    plt.plot(xs, ys, label="Interpolation")
+    plt.plot(xs, ys, label="Interpolation / Extrapoolation")
     plt.xlabel("Time")
     plt.ylabel("Temperature")   
     plt.legend()
     plt.show()
-
-    

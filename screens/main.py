@@ -59,7 +59,7 @@ class TextualApp(App):
             # Update the status display (the 'self.status_display' Static widget)
             self.status_display.update(f"You selected: **{event.button.label}** (ID: {button_id})")
             
-
+    
             # Button logic (function calling, etc)
             match button_id:
                 case "interp-btn":

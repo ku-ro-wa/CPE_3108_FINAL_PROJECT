@@ -1,5 +1,5 @@
-
-
+import numpy as np
+import matplotlib.pyplot as plt
 
 
 def forward_difference(f, x, h):
