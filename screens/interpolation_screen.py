@@ -1,6 +1,7 @@
 from textual.screen import Screen
 from textual.widgets import Label, Input, Button, Static
 from textual.containers import Container
+from textual.containers import VerticalScroll
 import sys
 from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent.parent))
@@ -8,33 +9,45 @@ import interpolation as interp
 import utils
 
 class InterpolationScreen(Screen):
-    """A screen for entering data points and calculating the interpolated value."""
+    """A screen for entering data points and calculating the interpolated/extrapolated value."""
 
     def compose(self):
-        yield Label("Lagrange Interpolation/Extrapolation – Enter Data Points")    
-        yield Label("Note: For extrapolation, enter x value outside the range of X data points.")
+        
+        # VerticalScroll guarantees scrolling
+        with VerticalScroll(id="menu-container"):
 
-        # Inputs for the known data points (X and Y)
-        self.x_data_input = Input(placeholder="X data points (comma-separated, e.g., 1, 2, 3)")
-        self.y_data_input = Input(placeholder="Y data points (comma-separated, e.g., 0, 1, 0)")
+            # Context Box
+            yield Static(
+                "[bold]Interpolation/Extrapolation Context[/bold]\n"
+                "This page estimates the temperature of a body at a specified point in time.\n"
+                "It can also estimate temperature at times outside the known data range.\n",
+                classes="context-box"
+            )
         
-        # New input for the single point to evaluate (x)
-        self.x_eval_input = Input(placeholder="x value to evaluate at (e.g., 1.5)")
-        
-        yield self.x_data_input
-        yield self.y_data_input 
-        yield self.x_eval_input
-        
+            yield Label("Lagrange Interpolation/Extrapolation – Enter Data Points")    
+            yield Label("Note: For extrapolation, enter x value outside the range of X data points.")
 
-        yield Button("Compute Using Divided Differences Method", id="compute_divided")
-        yield Button("Compute Using Lagrange Method", id="compute_lagrange")
-        yield Button("Show Plot", id="show_plot")
+            # Inputs for the known data points (X and Y)
+            self.x_data_input = Input(placeholder="Time data (s) (comma-separated, e.g., 1, 2, 3)")
+            self.y_data_input = Input(placeholder="Temperature data (°C) (comma-separated, e.g., 0, 1, 0)")
+            
+            # New input for the single point to evaluate (x)
+            self.x_eval_input = Input(placeholder="Time value to evaluate at (e.g., 1.5)")
+            
+            yield self.x_data_input
+            yield self.y_data_input 
+            yield self.x_eval_input
+            
 
-        yield Label("---") 
-        yield Button("Back to Main Menu", id="back_to_main")
-        
-        self.output = Static("")
-        yield self.output
+            yield Button("Estimate/Predict Temperature Using Divided Differences Method", id="compute_divided")
+            yield Button("Estimate/Predict Temperature Using Lagrange Method", id="compute_lagrange")
+            yield Button("Show Plot", id="show_plot")
+
+            yield Label("---") 
+            yield Button("Back to Main Menu", id="back_to_main")
+            
+            self.output = Static("")
+            yield self.output
 
 
     def on_button_pressed(self, event):
@@ -49,16 +62,15 @@ class InterpolationScreen(Screen):
 
             # Error checking for data points
             if len(X) != len(Y):
-                raise ValueError("X and Y must have the same length.")
+                raise ValueError("Time and Temperature data points must have the same length.")
             if len(X) < 2:
                 raise ValueError("At least two data points are required.")
             if len(set(X)) != len(X):
-                raise ValueError("X values must be distinct.")
-
+                raise ValueError("Time values must be distinct.")
 
             # 2. Parse the single evaluation point x
             x_eval = float(self.x_eval_input.value)
-            result_value = None
+            result_value = 0
             method_name = ""
             degree = len(X) - 1
 
@@ -82,6 +94,14 @@ class InterpolationScreen(Screen):
                 self.last_method = interp.lagrange_interpolation
                 self.last_method_name = method_name
 
+            # Determine Heating or Cooling state
+            state = "Stable"
+
+            if (result_value > 0):
+                state = "Heating"
+            elif (result_value < 0):
+                state = "Cooling"
+
             # 3. Show plot if requested
             if event.button.id == "show_plot":
                 # Check if a method was previously computed and stored
@@ -99,16 +119,17 @@ class InterpolationScreen(Screen):
                 f"Method: {method_name}\n"
                 f"Operation: {mode}\n"
                 f"Polynomial degree: {degree}\n"
-                f"X data points: {X}\n"
-                f"Y data points: {Y}\n"
-                f"Interpolated/Extrapolated value at x: {x_eval}\n"
+                f"Time data points: {X}\n"
+                f"Temperature data points: {Y}\n"
+                f"Interpolated/Extrapolated value at time: {x_eval}\n"
                 f"Result: {result_value:0.6f}"
+                f"\nThe body is currently {state}"
             )
             self.output.update(output_text)
 
         except ValueError:
-            self.output.update("❌ **Error:** Please ensure all inputs are valid numbers separated by commas (or a single number for x).")
+            self.output.update("❌  **Error:** Please ensure all inputs are valid numbers separated by commas (or a single number for evaluated time).")
         except IndexError:
-            self.output.update("❌ **Error:** Please ensure you have entered an equal number of X and Y data points.")
+            self.output.update("❌  **Error:** Please ensure you have entered an equal number of time and temperature data points.")
         except ZeroDivisionError:
-            self.output.update("❌ **Error:** X data points must be unique. The current data points will cause division by zero.")
+            self.output.update("❌  **Error:** Time data points must be unique. The current data points will cause division by zero.")

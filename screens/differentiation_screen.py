@@ -1,6 +1,7 @@
 from textual.screen import Screen
 from textual.widgets import Label, Input, Button, Static
 from textual.containers import Container
+from textual.containers import VerticalScroll
 import sys
 from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent.parent))
@@ -14,30 +15,43 @@ class DifferentiationScreen(Screen):
     """A screen for entering data points and calculating the differentiated value."""
 
     def compose(self):
-        yield Label("Numerical Differentiation – Enter Data Points")
-        
-        # Inputs for the known data points (X and Y)
-        self.f_data_input = Input(placeholder="Function f(x) (SymPy format, e.g., sin(x), x**2 + 3*x + 2)")
-        yield Label(
-            "Note: Use SymPy syntax (e.g., sin(x), exp(x), x**2). Avoid prefixing with 'np.'."
-        )
-        self.x_data_input = Input(placeholder="Data point x (e.g., 1.0)")
-        self.h_data_input = Input(placeholder="Step size h (e.g., 0.01)")
-        
-        yield self.f_data_input
-        yield self.x_data_input
-        yield self.h_data_input
-        yield Label("---") 
+        # VerticalScroll guarantees scrolling
+        with VerticalScroll(id="menu-container"):
+            yield Label("Numerical Differentiation – Enter Data Points")
 
-        yield Button("Backward Divided Difference", id="compute_backward")
-        yield Button("Forward Divided Difference", id="compute_forward")
-        yield Button("Central Divided Difference", id="compute_central")
+            # Context Box
+            yield Static(
+                """
+                [bold]Numerical Differentiation Context[/bold]
+                This page estimates the Cooling/Heating rate of a body.
+                Newton's Law of Cooling: dT/dt ∝ (T - Tₐ)
+                The numerical derivative approximates this rate using experimental data.
+                """,
+                classes="context-box"
+            )
+            
+            # Inputs for the known data points (X and Y)
+            self.f_data_input = Input(placeholder="Temperature at time x (f(x)) (SymPy format, e.g., sin(x), x**2 + 3*x + 2)")
+            yield Label(
+                "Note: Use SymPy syntax (e.g., sin(x), exp(x), x**2). Avoid prefixing with 'np.'."
+            )
+            self.x_data_input = Input(placeholder="Data point time (s) (e.g., 1.0)")
+            self.h_data_input = Input(placeholder="Time interval between measurements (s) (e.g., 0.01)")
+            
+            yield self.f_data_input
+            yield self.x_data_input
+            yield self.h_data_input
+            yield Label("---") 
 
-        yield Label("---") 
-        yield Button("Back to Main Menu", id="back_to_main")
+            yield Button("Cooling / Heating Rate (dT/dt) using Backward Divided Difference", id="compute_backward")
+            yield Button("Cooling / Heating Rate (dT/dt) using Forward Divided Difference", id="compute_forward")
+            yield Button("Cooling / Heating Rate (dT/dt) usingCentral Divided Difference", id="compute_central")
 
-        self.output = Static("")
-        yield self.output
+            yield Label("---") 
+            yield Button("Back to Main Menu", id="back_to_main")
+
+            self.output = Static("")
+            yield self.output
 
     def on_button_pressed(self, event):
         if event.button.id == "back_to_main":
@@ -77,31 +91,52 @@ class DifferentiationScreen(Screen):
             # Calculate the exact derivative value at point X
             exact_value = float(f_prime_np(X))
 
-            approx_value = None
+            approx_value = 0
             method_name = ""
 
             if event.button.id == "compute_backward":
                 approx_value = diff.backward_difference(f_np, X, H)
                 method_name = "Backward Divided Difference"
+                utils.latest_results["method_b"] = approx_value
+                utils.latest_results["description"] = "Symbolic vs Backward Divided Difference"
+
             elif event.button.id == "compute_forward":
                 approx_value = diff.forward_difference(f_np, X, H)
                 method_name = "Forward Divided Difference"
+                utils.latest_results["method_b"] = approx_value
+                utils.latest_results["description"] = "Symbolic vs Forward Divided Difference"
+            
             elif event.button.id == "compute_central":
                 approx_value = diff.central_difference(f_np, X, H)
-                method_name = "Central Divided Difference"    
+                method_name = "Central Divided Difference"
+                utils.latest_results["method_b"] = approx_value
+                utils.latest_results["description"] = "Symbolic vs Central Divided Difference"
+                
 
             # Calculate the relative error (after approx_value set)
             relative_err = utils.relative_error(approx_value, exact_value)
 
+            utils.latest_results["method_a"] = exact_value
+
+            # Determine Heating or Cooling state
+            state = "Stable"
+
+            if (approx_value > 0 or exact_value > 0):
+                state = "Heating"
+            elif (approx_value < 0 or exact_value < 0):
+                state = "Cooling"
+            
+
             output_text = (
                 f"Method: {method_name}\n"
-                f"Function $f(x) = {f_expr}$\n"
-                f"True Derivative $f'(x) = {df_expr}$\n"
+                f"Temperature at Time x, Function f(x) = {f_expr}\n"
+                f"Rate of Temperature Change, True Derivative f'(x) = {df_expr}\n"
                 f"--- \n"
-                f"At $x={X}$ with $h={H}$:\n"
-                f"Approximate $f'({X}) \\approx \\mathbf{{ {approx_value:0.8f} }}$\n"
-                f"Exact $f'({X}) = \\mathbf{{ {exact_value:0.8f} }}$\n"
-                f"Relative Error: $\\mathbf{{ {relative_err:0.4e} }}$"
+                f"At Time={X} with Time Interval={H}:\n"
+                f"Approximate Rate of Temperature Change ≈ {approx_value:0.8f}\n"
+                f"Exact Rate of Temperature Change = {exact_value:0.8f}\n"
+                f"Relative Error: {relative_err:0.4e}\n"
+                f"The body is currently: {state} at a rate of {approx_value:0.8f} (°C/s)\n"
             )
             self.output.update(output_text)
 

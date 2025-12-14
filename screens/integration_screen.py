@@ -21,27 +21,34 @@ class IntegrationScreen(Screen):
         with VerticalScroll(id="menu-container"):
             yield Label("Numerical Integration — Enter Data", id="title")
 
-            # -------- Mode A: Tabulated Data --------
-            yield Label("Mode A: Tabulated Data (x and y values)")
-            self.x_input = Input(placeholder="X values (e.g., 0, 1, 2, 3)")
-            self.y_input = Input(placeholder="Y values (e.g., 0, 1, 4, 9)")
+            # Context Box
+            yield Static(
+                "[bold]Numerical Integration Context[/bold]\n"
+                "This page estimates the rate of a body's change in thermal energy.\n",
+                classes="context-box"
+            )
+
+            # -------- Mode A: Experimental Data --------
+            yield Label("Mode A: Experimental Data (Time and Temperature values)")
+            self.x_input = Input(placeholder="Time values (s) (e.g., 0, 1, 2, 3)")
+            self.y_input = Input(placeholder="Temperature values (°C) (e.g., 0, 1, 4, 9)")
             yield self.x_input
             yield self.y_input
 
             yield Static("---")
 
-            # -------- Mode B: Function --------
-            yield Label("Mode B: Function Input (f(x), a, b, h)")
+            # -------- Mode B: Analytical Model --------
+            yield Label("Mode B: Analytical Model (Temperature Model f(x), Start Time, End Time, Time Step)")
             yield Static(
                 "Use SymPy syntax: sin(x), exp(x), x**2\n"
                 "(avoid np.sin / np.exp in input)",
                 classes="status",
             )
 
-            self.f_input = Input(placeholder="f(x) (e.g., x**2, sin(x))")
-            self.a_input = Input(placeholder="Lower bound a (e.g., 0)")
-            self.b_input = Input(placeholder="Upper bound b (e.g., 3)")
-            self.h_input = Input(placeholder="Step size h (e.g., 0.5)")
+            self.f_input = Input(placeholder="Temperature Model f(x) (e.g., x**2, sin(x))")
+            self.a_input = Input(placeholder="Start Time (e.g., 0)")
+            self.b_input = Input(placeholder="End Time (e.g., 3)")
+            self.h_input = Input(placeholder="Time Step h (e.g., 0.5)")
             yield self.f_input
             yield self.a_input
             yield self.b_input
@@ -50,8 +57,8 @@ class IntegrationScreen(Screen):
             yield Static("---")
 
             # -------- Method Buttons --------
-            yield Button("Trapezoidal Rule", id="trap")
-            yield Button("Simpson's 1/3 Rule", id="simp")
+            yield Button("Estimate Change in Thermal Energy (Trapezoidal Rule)", id="trap")
+            yield Button("Estimate Change in Thermal Energy (Simpson's 1/3 Rule)", id="simp")
             yield Button("Back to Main Menu", id="back")
 
             self.output = Static("Waiting for input...", classes="status")
@@ -92,17 +99,17 @@ class IntegrationScreen(Screen):
             func = self._has_function_mode()
 
             if points and func:
-                raise ValueError("Use only ONE mode: clear either (x,y) OR (f,a,b,h).")
+                raise ValueError("Use only ONE mode: clear either (Time and Temperature values) OR (Temperature Model f(x), Start Time, End Time, Time Step).")
             if not points and not func:
-                raise ValueError("Provide either (x,y) OR (f,a,b,h).")
+                raise ValueError("Provide either (Time and Temperature values) OR (Temperature Model f(x), Start Time, End Time, Time Step).")
 
-            # -------- Mode A: Tabulated Data --------
+            # -------- Mode A: Experimental Data --------
             if points:
                 X = self._parse_csv(self.x_input.value)
                 Y = self._parse_csv(self.y_input.value)
 
                 if len(X) != len(Y):
-                    raise ValueError("X and Y must have the same number of values.")
+                    raise ValueError("Time and Temperature must have the same number of values.")
                 if len(X) < 2:
                     raise ValueError("At least two data points are required.")
 
@@ -111,23 +118,32 @@ class IntegrationScreen(Screen):
                 Y = Y[order]
 
                 if np.any(np.diff(X) <= 0):
-                    raise ValueError("X values must be strictly increasing.")
+                    raise ValueError("Time values must be strictly increasing.")
 
                 if event.button.id == "trap":
                     approx = integ.trapezoidal_from_points(X, Y)
                     method = "Trapezoidal Rule (points)"
+                    utils.latest_results["method_b"] = approx
+                    utils.latest_results["description"] = "Symbolic vs Trapezoidal Rule (points)"
+
                 else:
                     approx = integ.simpsons_from_points(X, Y)
                     method = "Simpson's 1/3 Rule (points)"
+                    utils.latest_results["method_b"] = approx
+                    utils.latest_results["description"] = "Symbolic vs Simpson's 1/3 Rule (points)"
+
+
 
                 # No exact solution for arbitrary data → use trapezoid as reference
                 ref = integ.trapezoidal_from_points(X, Y)
                 err = utils.relative_error(approx, ref)
 
+                utils.latest_results["method_a"] = ref
+
                 self.output.update(
                     f"Method: {method}\n"
-                    f"X: {X.tolist()}\n"
-                    f"Y: {Y.tolist()}\n"
+                    f"Time: {X.tolist()}\n"
+                    f"Temperature: {Y.tolist()}\n"
                     f"---\n"
                     f"Approx Area: {approx:.10f}\n"
                     f"Reference (Trapezoid): {ref:.10f}\n"
@@ -150,18 +166,26 @@ class IntegrationScreen(Screen):
             if event.button.id == "trap":
                 approx = integ.trapezoidal_rule(f_np, a, b, N)
                 method = "Trapezoidal Rule (function)"
+                utils.latest_results["method_b"] = approx
+                utils.latest_results["description"] = "Symbolic vs Trapezoidal Rule (function)"
+
             else:
                 approx = integ.simpsons_rule(f_np, a, b, N)
                 method = "Simpson's 1/3 Rule (function)"
+                utils.latest_results["method_b"] = approx
+                utils.latest_results["description"] = "Symbolic vs Simpson's 1/3 Rule (function)"
+
 
             exact = float(sp.N(sp.integrate(f_expr, (x, a, b))))
             err = utils.relative_error(approx, exact)
 
+            utils.latest_results["method_a"] = exact
+
             self.output.update(
                 f"Method: {method}\n"
-                f"f(x) = {f_expr}\n"
-                f"Interval: [{a}, {b}]\n"
-                f"h = {h}  (N = {N})\n"
+                f"Temperature Model = {f_expr}\n"
+                f"Time Interval: [{a}, {b}]\n"
+                f"Time Step = {h}  (N = {N})\n"
                 f"---\n"
                 f"Approx Area: {approx:.10f}\n"
                 f"Exact Area: {exact:.10f}\n"

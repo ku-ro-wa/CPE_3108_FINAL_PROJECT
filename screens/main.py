@@ -1,6 +1,7 @@
 ﻿from textual.app import App
 from textual.widgets import Static, Label, Button, Input
 from textual.containers import Container
+from textual.containers import VerticalScroll
 from pathlib import Path
 import sys
 
@@ -9,37 +10,50 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 import interpolation_screen as interp_screen
 import differentiation_screen as diff_screen
 import integration_screen as integ_screen
+import error_screen as error_screen
 
 
 class TextualApp(App):
     CSS_PATH = str(Path(__file__).parent / "static_and_label.tcss")
 
     def compose(self):
-        with Container(id="menu-container"):
-            # Title
-            yield Label("Thermal Simulation Operations", id="title")
 
-            # Buttons
-            yield Button("1. Interpolation", id="interp-btn")
-            yield Button("2. Extrapolation", id="extrap-btn")
-            yield Button("3. Numerical Differentiation", id="diff-btn")
-            yield Button("4. Numerical Integration", id="integ-btn")
-            yield Button("5. Error Analysis", id="error-btn")
-            yield Button("0. Exit", id="exit-btn")
+        # VerticalScroll guarantees scrolling
+        with VerticalScroll(id="menu-container"):
+            with Container(id="menu-container"):
+                # Title
+                yield Label("Thermal Simulation Operations", id="title")
 
-            # Status display
-            self.status_display = Static("Waiting for selection...", classes="status")
-            yield self.status_display
+                # Context Box
+                yield Static(
+                    "[bold]Thermal System Context[/bold]\n"
+                    "This tool analyzes temperature variation of a body over time.\n"
+                    "Numerical methods are used to estimate cooling/heating behavior\n"
+                    "when analytical solutions are unavailable.",
+                    classes="context-box"
+                )
 
-            yield Static("[bold] Alternatively, enter the number: [/bold]", id="static_prompt")
+                # Buttons
+                yield Button("1. Estimate Body of Mass' Temperature (Interpolation)", id="interp-btn")
+                yield Button("2. Predict Body of Mass' Temperature (Extrapolation)", id="extrap-btn")
+                yield Button("3. Estimate Cooling / Heating Rate (Numerical Differentiation)", id="diff-btn")
+                yield Button("4. Estimate Thermal Energy Change (Numerical Integration)", id="integ-btn")
+                yield Button("5. Thermal Model Accuracy (Error Analysis)", id="error-btn")
+                yield Button("0. Exit", id="exit-btn")
 
-            # Input field
-            self.operation_input = Input(
-                placeholder="Enter 0-5 and press Enter",
-                type="number",
-                tooltip="Enter a number between 0 and 5",
-            )
-            yield self.operation_input
+                # Status display
+                self.status_display = Static("Waiting for selection...", classes="status")
+                yield self.status_display
+
+                yield Static("[bold] Alternatively, enter the number: [/bold]", id="static_prompt")
+
+                # Input field
+                self.operation_input = Input(
+                    placeholder="Enter 0-5 and press Enter",
+                    type="number",
+                    tooltip="Enter a number between 0 and 5",
+                )
+                yield self.operation_input
 
     # --- Button presses ---
     def on_button_pressed(self, event: Button.Pressed) -> None:
@@ -58,15 +72,14 @@ class TextualApp(App):
             case "interp-btn":
                 self.push_screen(interp_screen.InterpolationScreen())
             case "extrap-btn":
-                # Using same screen for now (your current setup)
                 self.push_screen(interp_screen.InterpolationScreen())
             case "diff-btn":
                 self.push_screen(diff_screen.DifferentiationScreen())
             case "integ-btn":
                 self.push_screen(integ_screen.IntegrationScreen())
             case "error-btn":
-                self.status_display.update("Error Analysis screen not implemented yet.")
-
+                self.push_screen(error_screen.ErrorScreen())
+    
     # --- Input submission (press Enter) ---
     def on_input_submitted(self, event: Input.Submitted) -> None:
         user_input = event.value.strip()
@@ -103,7 +116,8 @@ class TextualApp(App):
                 self.status_display.update("Opening Numerical Integration...")
                 self.push_screen(integ_screen.IntegrationScreen())
             case 5:
-                self.status_display.update("Error Analysis screen not implemented yet.")
+                self.status_display.update("Opening Error Analysis...")
+                self.push_screen(error_screen.ErrorScreen())
 
         # Clear the input after handling
         self.operation_input.clear()
