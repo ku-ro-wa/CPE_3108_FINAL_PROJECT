@@ -1,28 +1,172 @@
 from textual.screen import Screen
 from textual.widgets import Label, Input, Button, Static
-from textual.containers import Container
-import integration as integ 
+from textual.containers import VerticalScroll
+from pathlib import Path
+import sys
+
+# Allow importing from project root (integration.py, utils.py)
+sys.path.insert(0, str(Path(__file__).parent.parent))
+
+import numpy as np
+import sympy as sp
+
+import integration as integ
+import utils
+
 
 class IntegrationScreen(Screen):
 
     def compose(self):
-        yield Label("Numerical Integration – Enter Data Points")
-        
-        # Inputs for the known data points (X and Y)
-        self.x_data_input = Input(placeholder="X data points (comma-separated, e.g., 1, 2, 3)")
-        self.y_data_input = Input(placeholder="Y data points (comma-separated, e.g., 0, 1, 0)")
-        
-        # New input for the limits of integration
-        self.a_input = Input(placeholder="Lower limit of integration (a)")
-        self.b_input = Input(placeholder="Upper limit of integration (b)")
-        
-        yield self.x_data_input
-        yield self.y_data_input
-        yield Label("---") 
-        yield self.a_input
-        yield self.b_input
-        
-        yield Button("Compute Integral", id="compute")
-        
-        self.output = Static("")
-        yield self.output
+        # VerticalScroll guarantees scrolling
+        with VerticalScroll(id="menu-container"):
+            yield Label("Numerical Integration — Enter Data", id="title")
+
+            # -------- Mode A: Tabulated Data --------
+            yield Label("Mode A: Tabulated Data (x and y values)")
+            self.x_input = Input(placeholder="X values (e.g., 0, 1, 2, 3)")
+            self.y_input = Input(placeholder="Y values (e.g., 0, 1, 4, 9)")
+            yield self.x_input
+            yield self.y_input
+
+            yield Static("---")
+
+            # -------- Mode B: Function --------
+            yield Label("Mode B: Function Input (f(x), a, b, h)")
+            yield Static(
+                "Use SymPy syntax: sin(x), exp(x), x**2\n"
+                "(avoid np.sin / np.exp in input)",
+                classes="status",
+            )
+
+            self.f_input = Input(placeholder="f(x) (e.g., x**2, sin(x))")
+            self.a_input = Input(placeholder="Lower bound a (e.g., 0)")
+            self.b_input = Input(placeholder="Upper bound b (e.g., 3)")
+            self.h_input = Input(placeholder="Step size h (e.g., 0.5)")
+            yield self.f_input
+            yield self.a_input
+            yield self.b_input
+            yield self.h_input
+
+            yield Static("---")
+
+            # -------- Method Buttons --------
+            yield Button("Trapezoidal Rule", id="trap")
+            yield Button("Simpson's 1/3 Rule", id="simp")
+            yield Button("Back to Main Menu", id="back")
+
+            self.output = Static("Waiting for input...", classes="status")
+            yield self.output
+
+    # =====================================================
+    # HELPERS
+    # =====================================================
+
+    def _parse_csv(self, text: str) -> np.ndarray:
+        vals = [v.strip() for v in text.split(",") if v.strip() != ""]
+        if not vals:
+            raise ValueError("Input cannot be empty.")
+        return np.array([float(v) for v in vals], dtype=float)
+
+    def _has_points_mode(self) -> bool:
+        return bool(self.x_input.value.strip()) and bool(self.y_input.value.strip())
+
+    def _has_function_mode(self) -> bool:
+        return (
+            bool(self.f_input.value.strip())
+            and bool(self.a_input.value.strip())
+            and bool(self.b_input.value.strip())
+            and bool(self.h_input.value.strip())
+        )
+
+    # =====================================================
+    # EVENTS
+    # =====================================================
+
+    def on_button_pressed(self, event: Button.Pressed) -> None:
+        if event.button.id == "back":
+            self.app.pop_screen()
+            return
+
+        try:
+            points = self._has_points_mode()
+            func = self._has_function_mode()
+
+            if points and func:
+                raise ValueError("Use only ONE mode: clear either (x,y) OR (f,a,b,h).")
+            if not points and not func:
+                raise ValueError("Provide either (x,y) OR (f,a,b,h).")
+
+            # -------- Mode A: Tabulated Data --------
+            if points:
+                X = self._parse_csv(self.x_input.value)
+                Y = self._parse_csv(self.y_input.value)
+
+                if len(X) != len(Y):
+                    raise ValueError("X and Y must have the same number of values.")
+                if len(X) < 2:
+                    raise ValueError("At least two data points are required.")
+
+                order = np.argsort(X)
+                X = X[order]
+                Y = Y[order]
+
+                if np.any(np.diff(X) <= 0):
+                    raise ValueError("X values must be strictly increasing.")
+
+                if event.button.id == "trap":
+                    approx = integ.trapezoidal_from_points(X, Y)
+                    method = "Trapezoidal Rule (points)"
+                else:
+                    approx = integ.simpsons_from_points(X, Y)
+                    method = "Simpson's 1/3 Rule (points)"
+
+                # No exact solution for arbitrary data → use trapezoid as reference
+                ref = integ.trapezoidal_from_points(X, Y)
+                err = utils.relative_error(approx, ref)
+
+                self.output.update(
+                    f"Method: {method}\n"
+                    f"X: {X.tolist()}\n"
+                    f"Y: {Y.tolist()}\n"
+                    f"---\n"
+                    f"Approx Area: {approx:.10f}\n"
+                    f"Reference (Trapezoid): {ref:.10f}\n"
+                    f"Relative Error (vs ref): {err:.4e}"
+                )
+                return
+
+            # -------- Mode B: Function --------
+            f_str = self.f_input.value.strip().replace("np.", "")
+            a = float(self.a_input.value)
+            b = float(self.b_input.value)
+            h = float(self.h_input.value)
+
+            x = sp.symbols("x")
+            f_expr = sp.sympify(f_str)
+            f_np = sp.lambdify(x, f_expr, "numpy")
+
+            N = integ.n_from_step(a, b, h)
+
+            if event.button.id == "trap":
+                approx = integ.trapezoidal_rule(f_np, a, b, N)
+                method = "Trapezoidal Rule (function)"
+            else:
+                approx = integ.simpsons_rule(f_np, a, b, N)
+                method = "Simpson's 1/3 Rule (function)"
+
+            exact = float(sp.N(sp.integrate(f_expr, (x, a, b))))
+            err = utils.relative_error(approx, exact)
+
+            self.output.update(
+                f"Method: {method}\n"
+                f"f(x) = {f_expr}\n"
+                f"Interval: [{a}, {b}]\n"
+                f"h = {h}  (N = {N})\n"
+                f"---\n"
+                f"Approx Area: {approx:.10f}\n"
+                f"Exact Area: {exact:.10f}\n"
+                f"Relative Error: {err:.4e}"
+            )
+
+        except Exception as e:
+            self.output.update(f"[red]Error:[/red] {e}")
