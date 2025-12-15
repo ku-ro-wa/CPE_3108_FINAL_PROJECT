@@ -70,7 +70,7 @@ def plot(X, Y, method):
     ys = [method(x, X, Y) for x in xs]
 
     plt.scatter(X, Y, label="Data")
-    plt.plot(xs, ys, label="Interpolation / Extrapoolation")
+    plt.plot(xs, ys, label="Interpolation / Extrapolation")
     plt.xlabel("Time")
     plt.ylabel("Temperature")   
     plt.legend()

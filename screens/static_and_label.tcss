@@ -19,7 +19,7 @@ Screen {
 
 #menu-container {
     /* Define the size for the content block */
-    width: 30; 
+    width: 50%; 
     /* Remove 'align: center middle' from Screen if you want other elements to fill the screen */
     /* Instead, center the entire container */
     align-horizontal: center;

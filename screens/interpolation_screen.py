@@ -1,20 +1,21 @@
 from textual.screen import Screen
 from textual.widgets import Label, Input, Button, Static
-from textual.containers import Container
 from textual.containers import VerticalScroll
 import sys
 from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent.parent))
 import interpolation as interp 
-import utils
 
 class InterpolationScreen(Screen):
+    CSS_PATH = str(Path(__file__).parent / "static_and_label.tcss")
     """A screen for entering data points and calculating the interpolated/extrapolated value."""
 
     def compose(self):
         
         # VerticalScroll guarantees scrolling
         with VerticalScroll(id="menu-container"):
+
+            yield Label("Estimate / Predict Temperature of Body of Mass", id="title")     
 
             # Context Box
             yield Static(
@@ -24,8 +25,7 @@ class InterpolationScreen(Screen):
                 classes="context-box"
             )
         
-            yield Label("Lagrange Interpolation/Extrapolation – Enter Data Points")    
-            yield Label("Note: For extrapolation, enter x value outside the range of X data points.")
+            yield Label("Note: For temperature prediction, enter time value to evaluate outside the range of the time data points.")
 
             # Inputs for the known data points (X and Y)
             self.x_data_input = Input(placeholder="Time data (s) (comma-separated, e.g., 1, 2, 3)")
@@ -46,7 +46,7 @@ class InterpolationScreen(Screen):
             yield Label("---") 
             yield Button("Back to Main Menu", id="back_to_main")
             
-            self.output = Static("")
+            self.output = Static("Waiting for input...", classes="status")
             yield self.output
 
 
@@ -56,7 +56,7 @@ class InterpolationScreen(Screen):
             return
         
         try:
-            # 1. Parse the data points X and Y
+            # Parse the data points X and Y
             X = list(map(float, self.x_data_input.value.split(",")))
             Y = list(map(float, self.y_data_input.value.split(",")))
 
@@ -68,7 +68,7 @@ class InterpolationScreen(Screen):
             if len(set(X)) != len(X):
                 raise ValueError("Time values must be distinct.")
 
-            # 2. Parse the single evaluation point x
+            # Parse the single evaluation point x
             x_eval = float(self.x_eval_input.value)
             result_value = 0
             method_name = ""
@@ -102,7 +102,7 @@ class InterpolationScreen(Screen):
             elif (result_value < 0):
                 state = "Cooling"
 
-            # 3. Show plot if requested
+            # Show plot if requested
             if event.button.id == "show_plot":
                 # Check if a method was previously computed and stored
                 if not hasattr(self, 'last_method'):
@@ -114,7 +114,7 @@ class InterpolationScreen(Screen):
                 self.output.update(f"📈 Plot opened in a separate window using the {self.last_method_name} method.")
                 return
 
-            # --- 4. Update Output ---
+            # Update Output 
             output_text = (
                 f"Method: {method_name}\n"
                 f"Operation: {mode}\n"

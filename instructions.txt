@@ -1,0 +1,78 @@
+Thermal Simulation — Instructions
+
+Overview
+- This project explores numerical methods (interpolation, differentiation, integration) applied to a simple thermal model (temperature vs time).
+- It provides a small TUI (Textual) application with screens for Interpolation, Differentiation, Integration, and Error Analysis.
+
+Prerequisites
+- Python 3.10+ (tested with the project's virtual environment)
+- Install dependencies:
+
+    pip install -r requirements.txt
+
+Run the application
+- Start the TUI app:
+
+    python thermal_sim/screens/main.py
+
+Build a standalone Windows executable (PyInstaller)
+- Install PyInstaller:
+
+  pip install pyinstaller
+
+- Recommended build command (run from project root):
+
+  pyinstaller --name thermal_sim --onedir \
+    --add-data "thermal_sim/screens/static_and_label.tcss;screens" \
+    --add-data "thermal_sim/instructions.txt;." \
+    thermal_sim\__main__.py
+
+Notes:
+- On macOS/Linux use `:` instead of `;` in `--add-data` paths.
+- Run the generated executable from a console so you can see stdout/stderr.
+- If the executable crashes immediately, check `thermal_sim_error.log` in the working directory — the package writes unhandled exceptions there for easier debugging.
+
+Usage (screens)
+- Interpolation / Extrapolation
+  - Enter time data (comma-separated) and temperature data (comma-separated).
+  - Enter a time value to evaluate (can be inside or outside the data range).
+  - Use "Divided Differences" or "Lagrange" to compute a value.
+  - "Show Plot" opens a Matplotlib plot of the data and the interpolating / extrapolating function.
+
+- Differentiation
+  - Enter a temperature model using SymPy syntax (e.g., `sin(x)` or `x**2 + 3*x + 2`). Do not use `np.` prefix — the UI strips it.
+  - Enter the time `x` at which to estimate dT/dt and a small step `h` (e.g., 0.01).
+  - Choose Backward, Forward, or Central difference to compute the approximation.
+  - Use "Show Plot" to visualize f(x) and the derivative approximations.
+
+- Integration
+  - Mode A (experimental points): enter time and temperature lists (comma-separated) and choose Trapezoid or Simpson for the integral estimate. After computing, press "Show Plot" to visualize data and shaded trapezoids used for approximation.
+  - Mode B (function model): enter a SymPy-formula for f(x), start `a`, end `b`, and step `h`. Compute with Trapezoid or Simpson; press "Show Plot" to visualize the function and numerical sections.
+
+- Error Analysis
+  - After computing a symbolic (exact) result and a numerical estimate (e.g., in Integration or Differentiation screens), open Error Analysis to compare and see absolute/relative errors.
+
+Input notes and tips
+- SymPy syntax supported: `sin(x)`, `exp(x)`, `x**2`, etc. Avoid `np.sin` in inputs; `np.` will be stripped automatically where appropriate.
+- For Simpson's rule with points: you need an odd number of points (even number of subintervals) and uniform spacing.
+- For function-based Simpson's rule: `N` (computed from `h`) must be even.
+- For integration with function mode, `h` must evenly divide (b - a) — `h = (b-a)/N` where N is integer.
+
+Plotting
+- Plots use Matplotlib and open in external windows. If running remotely (e.g., over SSH), ensure you have X forwarding or use a local environment.
+- The `plot_examples.py` script in the package root demonstrates plotting utilities:
+
+    python thermal_sim/plot_examples.py
+
+Troubleshooting
+- If a plot window appears blank, make sure your environment supports GUI windows and Matplotlib is correctly installed.
+- If you encounter parsing errors for function inputs, check for invalid SymPy expressions or stray `np.` prefixes.
+- For Textual UI issues, check your terminal supports the behavior required by the `textual` library (ANSI support, sizing).
+
+Dev Notes
+- Key modules:
+  - `interpolation.py` — divided differences, Newton & Lagrange polynomials, `plot()` helper.
+  - `differentiation.py` — finite differences and `plot()` helper to visualize derivative approximations.
+  - `integration.py` — composite trapezoid/simpson for points and functions; `plot()` helpers are provided for both points and function modes.
+  - `utils.py` — helpers for error computations and storing last results used by Error Analysis.
+- Adding tests: consider small pytest tests that call function-level APIs (e.g., `trapezoidal_rule`, `simpsons_rule`) and the plotting functions (sanity checks only).

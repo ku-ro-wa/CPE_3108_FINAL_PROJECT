@@ -1,10 +1,8 @@
 ﻿from textual.app import App
 from textual.widgets import Static, Label, Button, Input
-from textual.containers import Container
 from textual.containers import VerticalScroll
 from pathlib import Path
 import sys
-
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 import interpolation_screen as interp_screen
@@ -20,40 +18,40 @@ class TextualApp(App):
 
         # VerticalScroll guarantees scrolling
         with VerticalScroll(id="menu-container"):
-            with Container(id="menu-container"):
-                # Title
-                yield Label("Thermal Simulation Operations", id="title")
+            # Title
+            yield Label("Thermal Simulation Operations", id="title")
 
-                # Context Box
-                yield Static(
-                    "[bold]Thermal System Context[/bold]\n"
-                    "This tool analyzes temperature variation of a body over time.\n"
-                    "Numerical methods are used to estimate cooling/heating behavior\n"
-                    "when analytical solutions are unavailable.",
-                    classes="context-box"
-                )
+            # Context Box
+            yield Static(
+                "[bold]Thermal System Context[/bold]\n"
+                "This tool analyzes temperature variation of a body over time.\n"
+                "Numerical methods are used to estimate cooling/heating behavior\n"
+                "when analytical solutions are unavailable.",
+                classes="context-box"
+            )
 
-                # Buttons
-                yield Button("1. Estimate Body of Mass' Temperature (Interpolation)", id="interp-btn")
-                yield Button("2. Predict Body of Mass' Temperature (Extrapolation)", id="extrap-btn")
-                yield Button("3. Estimate Cooling / Heating Rate (Numerical Differentiation)", id="diff-btn")
-                yield Button("4. Estimate Thermal Energy Change (Numerical Integration)", id="integ-btn")
-                yield Button("5. Thermal Model Accuracy (Error Analysis)", id="error-btn")
-                yield Button("0. Exit", id="exit-btn")
+            # Buttons
+            yield Button("1. Estimate Body of Mass' Temperature (Interpolation)", id="interp-btn")
+            yield Button("2. Predict Body of Mass' Temperature (Extrapolation)", id="extrap-btn")
+            yield Button("3. Estimate Cooling / Heating Rate (Numerical Differentiation)", id="diff-btn")
+            yield Button("4. Estimate Thermal Energy Change (Numerical Integration)", id="integ-btn")
+            yield Button("5. Thermal Model Accuracy (Error Analysis)", id="error-btn")
+            yield Button("0. Exit", id="exit-btn")
 
-                # Status display
-                self.status_display = Static("Waiting for selection...", classes="status")
-                yield self.status_display
+            # Status display
+            self.status_display = Static("Waiting for selection...", classes="status")
+            yield self.status_display
 
-                yield Static("[bold] Alternatively, enter the number: [/bold]", id="static_prompt")
+            yield Static("[bold] Alternatively, enter the number: [/bold]", id="static_prompt")
 
-                # Input field
-                self.operation_input = Input(
-                    placeholder="Enter 0-5 and press Enter",
-                    type="number",
-                    tooltip="Enter a number between 0 and 5",
-                )
-                yield self.operation_input
+            # Input field
+            self.operation_input = Input(
+                placeholder="Enter 0-5 and press Enter",
+                type="number",
+                tooltip="Enter a number between 0 and 5",
+            )
+            
+            yield self.operation_input
 
     # --- Button presses ---
     def on_button_pressed(self, event: Button.Pressed) -> None:

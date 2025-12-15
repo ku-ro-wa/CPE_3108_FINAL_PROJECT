@@ -1,4 +1,5 @@
 import numpy as np
+import matplotlib.pyplot as plt
 
 
 # =====================================================
@@ -102,3 +103,85 @@ def n_from_step(a: float, b: float, h: float) -> int:
         raise ValueError("h must evenly divide the interval (b-a)")
 
     return N
+
+
+def plot_from_points(x, y, method_name="trapezoidal"):
+    """Plot tabulated data and the numerical integration approximation.
+
+    Args:
+        x: sequence of x points
+        y: sequence of y points
+        method_name: 'trapezoidal' or 'simpson' (controls shading/labels)
+    """
+    x = np.asarray(x, dtype=float)
+    y = np.asarray(y, dtype=float)
+
+    xs = np.linspace(x.min(), x.max(), 400)
+    ys = np.interp(xs, x, y)
+
+    plt.figure(figsize=(8, 4))
+    plt.plot(xs, ys, label="Interpolated function")
+    plt.scatter(x, y, color="k", label="Data points")
+
+    # Shade trapezoids for each subinterval (works for either method visually)
+    for i in range(len(x) - 1):
+        x0, x1 = x[i], x[i + 1]
+        y0, y1 = y[i], y[i + 1]
+        verts_x = [x0, x0, x1, x1]
+        verts_y = [0, y0, y1, 0]
+        plt.fill_between([x0, x1], [y0, y1], color="C0", alpha=0.2)
+
+    plt.xlabel("Time")
+    plt.ylabel("Temperature")
+    plt.title(f"Numerical integration ({method_name}) from points")
+    plt.legend()
+    plt.show()
+
+
+def plot_function(f, a, b, h, method_name="trapezoidal"):
+    """Plot a function over [a,b] and visualize composite rule used for integration.
+
+    Args:
+        f: callable f(x)
+        a: start
+        b: end
+        h: step size
+        method_name: 'trapezoidal' or 'simpson'
+    """
+    N = n_from_step(a, b, h)
+    xs = np.linspace(a, b, 400)
+    ys = f(xs)
+
+    x_nodes = np.linspace(a, b, N + 1)
+    y_nodes = f(x_nodes)
+
+    plt.figure(figsize=(8, 4))
+    plt.plot(xs, ys, label="f(x)")
+
+    # Draw trapezoids for visualization
+    for i in range(N):
+        x0, x1 = x_nodes[i], x_nodes[i + 1]
+        y0, y1 = y_nodes[i], y_nodes[i + 1]
+        plt.fill_between([x0, x1], [y0, y1], color="C0", alpha=0.2)
+
+    plt.scatter(x_nodes, y_nodes, color="k", zorder=3, label="nodes")
+    plt.xlabel("Time")
+    plt.ylabel("Temperature")
+    plt.title(f"Numerical integration ({method_name}) on [{a}, {b}] with h={h} (N={N})")
+    plt.legend()
+    plt.show()
+
+
+def plot(*args, **kwargs):
+    """Convenience wrapper:
+    - plot(x, y) -> plot_from_points
+    - plot(f, a, b, h) -> plot_function
+    """
+    if len(args) == 2:
+        return plot_from_points(args[0], args[1], kwargs.get("method_name", "trapezoidal"))
+    elif len(args) == 4:
+        return plot_function(args[0], args[1], args[2], args[3], kwargs.get("method_name", "trapezoidal"))
+    else:
+        raise TypeError("plot expects (x, y) or (f, a, b, h)")
+
+

@@ -1,6 +1,5 @@
 from textual.screen import Screen
-from textual.widgets import Label, Input, Button, Static
-from textual.containers import Container
+from textual.widgets import Label, Button, Static
 from textual.containers import VerticalScroll
 import sys
 from pathlib import Path
@@ -8,11 +7,11 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 import utils
 
 class ErrorScreen(Screen):
+    CSS_PATH = str(Path(__file__).parent / "static_and_label.tcss")
     """A screen for displaying error analysis results."""
 
     def compose(self):
-        # VerticalScroll guarantees scrolling
-        with VerticalScroll(id="menu-container"):
+
             yield Label("Error Analysis Results", id="title")
             yield Label("Comparison of Numerical Results")
 
@@ -23,13 +22,18 @@ class ErrorScreen(Screen):
             # Only one output widget should exist; keep the initial one above
 
 
-    def on_mount(self):
+    async def on_mount(self):
+
         """Populate the error analysis when screen loads."""
+        # Debug message to confirm the handler runs when the screen mounts
+        print("[debug] ErrorScreen.on_mount called")
+
         a = utils.latest_results.get("method_a")
         b = utils.latest_results.get("method_b")
         desc = utils.latest_results.get("description", "")
 
         if a is None or b is None:
+            # Update the existing output widget
             self.output.update("⚠️  No numerical results available for error analysis. Please perform computations first.")
             return
 
@@ -42,6 +46,7 @@ class ErrorScreen(Screen):
 
         rel_error_percent = rel_error * 100 if b != 0 else float("inf")
 
+        # Update the already-mounted widget instead of creating a new one
         self.output.update(
             f"{desc}\n\n"
             f"Symbolic Calculation Result: {a:.6f}\n"

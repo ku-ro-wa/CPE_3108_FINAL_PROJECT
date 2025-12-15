@@ -1,39 +1,39 @@
 from textual.screen import Screen
 from textual.widgets import Label, Input, Button, Static
-from textual.containers import Container
 from textual.containers import VerticalScroll
 import sys
 from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent.parent))
 import differentiation as diff 
 import utils
-import numpy as np
 import sympy as sp
 
 
 class DifferentiationScreen(Screen):
+    CSS_PATH = str(Path(__file__).parent / "static_and_label.tcss")
     """A screen for entering data points and calculating the differentiated value."""
 
     def compose(self):
         # VerticalScroll guarantees scrolling
         with VerticalScroll(id="menu-container"):
-            yield Label("Numerical Differentiation – Enter Data Points")
+            
+            yield Label("Estimate Cooling / Heating Rate of Body of Mass", id="title") 
 
             # Context Box
             yield Static(
-                """
-                [bold]Numerical Differentiation Context[/bold]
-                This page estimates the Cooling/Heating rate of a body.
-                Newton's Law of Cooling: dT/dt ∝ (T - Tₐ)
-                The numerical derivative approximates this rate using experimental data.
-                """,
+                "[bold]Numerical Differentiation Context[/bold]"
+                "This page estimates the Cooling/Heating rate of a body."
+                "Newton's Law of Cooling: dT/dt ∝ (T - Tₐ)"
+                "The numerical derivative approximates this rate using experimental data.",
                 classes="context-box"
             )
             
             # Inputs for the known data points (X and Y)
             self.f_data_input = Input(placeholder="Temperature at time x (f(x)) (SymPy format, e.g., sin(x), x**2 + 3*x + 2)")
-            yield Label(
-                "Note: Use SymPy syntax (e.g., sin(x), exp(x), x**2). Avoid prefixing with 'np.'."
+            yield Static(
+                "Use SymPy syntax: sin(x), exp(x), x**2\n"
+                "(avoid np.sin / np.exp in input)",
+                classes="status",
             )
             self.x_data_input = Input(placeholder="Data point time (s) (e.g., 1.0)")
             self.h_data_input = Input(placeholder="Time interval between measurements (s) (e.g., 0.01)")
@@ -41,16 +41,16 @@ class DifferentiationScreen(Screen):
             yield self.f_data_input
             yield self.x_data_input
             yield self.h_data_input
-            yield Label("---") 
 
             yield Button("Cooling / Heating Rate (dT/dt) using Backward Divided Difference", id="compute_backward")
             yield Button("Cooling / Heating Rate (dT/dt) using Forward Divided Difference", id="compute_forward")
-            yield Button("Cooling / Heating Rate (dT/dt) usingCentral Divided Difference", id="compute_central")
+            yield Button("Cooling / Heating Rate (dT/dt) using Central Divided Difference", id="compute_central")
+            yield Button("Show Plot", id="show_plot")
 
             yield Label("---") 
             yield Button("Back to Main Menu", id="back_to_main")
 
-            self.output = Static("")
+            self.output = Static("Waiting for input...", classes="status")
             yield self.output
 
     def on_button_pressed(self, event):
@@ -60,6 +60,7 @@ class DifferentiationScreen(Screen):
         
         
         try:
+            # Parse the data points X and H
             X = float(self.x_data_input.value)
             H = float(self.h_data_input.value)
             
@@ -99,18 +100,27 @@ class DifferentiationScreen(Screen):
                 method_name = "Backward Divided Difference"
                 utils.latest_results["method_b"] = approx_value
                 utils.latest_results["description"] = "Symbolic vs Backward Divided Difference"
+                # Store the last used method for plotting
+                self.last_method = diff.backward_difference 
+                self.last_method_name = method_name
 
             elif event.button.id == "compute_forward":
                 approx_value = diff.forward_difference(f_np, X, H)
                 method_name = "Forward Divided Difference"
                 utils.latest_results["method_b"] = approx_value
                 utils.latest_results["description"] = "Symbolic vs Forward Divided Difference"
+                # Store the last used method for plotting
+                self.last_method = diff.forward_difference 
+                self.last_method_name = method_name
             
             elif event.button.id == "compute_central":
                 approx_value = diff.central_difference(f_np, X, H)
                 method_name = "Central Divided Difference"
                 utils.latest_results["method_b"] = approx_value
                 utils.latest_results["description"] = "Symbolic vs Central Divided Difference"
+                # Store the last used method for plotting
+                self.last_method = diff.central_difference 
+                self.last_method_name = method_name
                 
 
             # Calculate the relative error (after approx_value set)
@@ -126,6 +136,16 @@ class DifferentiationScreen(Screen):
             elif (approx_value < 0 or exact_value < 0):
                 state = "Cooling"
             
+            if event.button.id == "show_plot":
+                # Check if a method was previously computed and stored
+                if not hasattr(self, 'last_method'):
+                     self.output.update("❌ **Error:** Please compute an estimation first before plotting.")
+                     return # Exit function before formatting block
+
+                # Use the last computed method for plotting
+                diff.plot(f_np, X, H, self.last_method)
+                self.output.update(f"📈 Plot opened in a separate window using the {self.last_method_name} method.")
+                return
 
             output_text = (
                 f"Method: {method_name}\n"

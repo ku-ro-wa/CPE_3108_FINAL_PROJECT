@@ -1,10 +1,8 @@
 from textual.screen import Screen
 from textual.widgets import Label, Input, Button, Static
 from textual.containers import VerticalScroll
-from pathlib import Path
 import sys
-
-# Allow importing from project root (integration.py, utils.py)
+from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 import numpy as np
@@ -15,11 +13,15 @@ import utils
 
 
 class IntegrationScreen(Screen):
+    CSS_PATH = str(Path(__file__).parent / "static_and_label.tcss")
+    """A screen for entering data points and calculating the integrated value."""
 
     def compose(self):
+
         # VerticalScroll guarantees scrolling
         with VerticalScroll(id="menu-container"):
-            yield Label("Numerical Integration — Enter Data", id="title")
+
+            yield Label("Estimate Rate of a Body of Mass' Change in Temperature", id="title") 
 
             # Context Box
             yield Static(
@@ -35,7 +37,6 @@ class IntegrationScreen(Screen):
             yield self.x_input
             yield self.y_input
 
-            yield Static("---")
 
             # -------- Mode B: Analytical Model --------
             yield Label("Mode B: Analytical Model (Temperature Model f(x), Start Time, End Time, Time Step)")
@@ -54,11 +55,12 @@ class IntegrationScreen(Screen):
             yield self.b_input
             yield self.h_input
 
-            yield Static("---")
 
             # -------- Method Buttons --------
             yield Button("Estimate Change in Thermal Energy (Trapezoidal Rule)", id="trap")
             yield Button("Estimate Change in Thermal Energy (Simpson's 1/3 Rule)", id="simp")
+            yield Button("Show Plot", id="show_plot")
+            yield Label("---") 
             yield Button("Back to Main Menu", id="back")
 
             self.output = Static("Waiting for input...", classes="status")
@@ -68,10 +70,10 @@ class IntegrationScreen(Screen):
     # HELPERS
     # =====================================================
 
-    def _parse_csv(self, text: str) -> np.ndarray:
+    def _parse_cs_string(self, text: str) -> np.ndarray:
         vals = [v.strip() for v in text.split(",") if v.strip() != ""]
         if not vals:
-            raise ValueError("Input cannot be empty.")
+            raise ValueError("Input cannot be empty.")          
         return np.array([float(v) for v in vals], dtype=float)
 
     def _has_points_mode(self) -> bool:
@@ -100,13 +102,32 @@ class IntegrationScreen(Screen):
 
             if points and func:
                 raise ValueError("Use only ONE mode: clear either (Time and Temperature values) OR (Temperature Model f(x), Start Time, End Time, Time Step).")
+
+            # If the user wants to view the plot, require a previously computed result
+            if event.button.id == "show_plot":
+                if not hasattr(self, "last_plot"):
+                    self.output.update("❌ **Error:** Please compute an integration first before plotting.")
+                    return
+
+                if self.last_plot[0] == "points":
+                    _, Xp, Yp, mname = self.last_plot
+                    integ.plot(Xp, Yp, method_name=mname)
+                    self.output.update(f"📈 Plot opened in a separate window using the {mname} method.")
+                    return
+
+                if self.last_plot[0] == "function":
+                    _, f_np_p, a_p, b_p, h_p, mname = self.last_plot
+                    integ.plot(f_np_p, a_p, b_p, h_p, method_name=mname)
+                    self.output.update(f"📈 Plot opened in a separate window using the {mname} method.")
+                    return
+
             if not points and not func:
                 raise ValueError("Provide either (Time and Temperature values) OR (Temperature Model f(x), Start Time, End Time, Time Step).")
 
             # -------- Mode A: Experimental Data --------
             if points:
-                X = self._parse_csv(self.x_input.value)
-                Y = self._parse_csv(self.y_input.value)
+                X = self._parse_cs_string(self.x_input.value)
+                Y = self._parse_cs_string(self.y_input.value)
 
                 if len(X) != len(Y):
                     raise ValueError("Time and Temperature must have the same number of values.")
@@ -125,12 +146,18 @@ class IntegrationScreen(Screen):
                     method = "Trapezoidal Rule (points)"
                     utils.latest_results["method_b"] = approx
                     utils.latest_results["description"] = "Symbolic vs Trapezoidal Rule (points)"
+                    # Store last plot args for Show Plot
+                    self.last_plot = ("points", X, Y, method)
+                    self.last_plot_name = method
 
                 else:
                     approx = integ.simpsons_from_points(X, Y)
                     method = "Simpson's 1/3 Rule (points)"
                     utils.latest_results["method_b"] = approx
                     utils.latest_results["description"] = "Symbolic vs Simpson's 1/3 Rule (points)"
+                    # Store last plot args for Show Plot
+                    self.last_plot = ("points", X, Y, method)
+                    self.last_plot_name = method
 
 
 
@@ -168,12 +195,18 @@ class IntegrationScreen(Screen):
                 method = "Trapezoidal Rule (function)"
                 utils.latest_results["method_b"] = approx
                 utils.latest_results["description"] = "Symbolic vs Trapezoidal Rule (function)"
+                # Store last plot args for Show Plot
+                self.last_plot = ("function", f_np, a, b, h, method)
+                self.last_plot_name = method
 
             else:
                 approx = integ.simpsons_rule(f_np, a, b, N)
                 method = "Simpson's 1/3 Rule (function)"
                 utils.latest_results["method_b"] = approx
                 utils.latest_results["description"] = "Symbolic vs Simpson's 1/3 Rule (function)"
+                # Store last plot args for Show Plot
+                self.last_plot = ("function", f_np, a, b, h, method)
+                self.last_plot_name = method
 
 
             exact = float(sp.N(sp.integrate(f_expr, (x, a, b))))
@@ -191,6 +224,7 @@ class IntegrationScreen(Screen):
                 f"Exact Area: {exact:.10f}\n"
                 f"Relative Error: {err:.4e}"
             )
+            return
 
         except Exception as e:
             self.output.update(f"[red]Error:[/red] {e}")
